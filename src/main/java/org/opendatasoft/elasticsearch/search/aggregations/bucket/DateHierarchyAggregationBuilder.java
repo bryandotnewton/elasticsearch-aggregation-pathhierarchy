@@ -11,7 +11,6 @@ import org.elasticsearch.common.xcontent.ObjectParser;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.index.mapper.DateFieldMapper;
-import org.elasticsearch.index.query.QueryShardContext;
 import org.elasticsearch.search.DocValueFormat;
 import org.elasticsearch.search.aggregations.AggregationBuilder;
 import org.elasticsearch.search.aggregations.AggregatorFactories.Builder;
@@ -24,6 +23,8 @@ import org.elasticsearch.search.aggregations.support.ValuesSourceAggregatorFacto
 import org.elasticsearch.search.aggregations.support.ValuesSourceConfig;
 import org.elasticsearch.search.aggregations.support.ValuesSourceRegistry;
 import org.elasticsearch.search.aggregations.support.ValuesSourceType;
+import org.elasticsearch.search.aggregations.support.AggregationContext;
+
 
 import java.io.IOException;
 import java.time.ZoneId;
@@ -42,6 +43,8 @@ import static java.util.Collections.unmodifiableMap;
  */
 public class DateHierarchyAggregationBuilder extends ValuesSourceAggregationBuilder<DateHierarchyAggregationBuilder> {
     public static final String NAME = "date_hierarchy";
+    public static final ValuesSourceRegistry.RegistryKey<DateHierarchyAggregatorSupplier> REGISTRY_KEY =
+       new ValuesSourceRegistry.RegistryKey<>(NAME, DateHierarchyAggregatorSupplier.class);
 
     public static final ParseField INTERVAL_FIELD = new ParseField("interval");
     public static final ParseField ORDER_FIELD = new ParseField("order");
@@ -182,14 +185,25 @@ public class DateHierarchyAggregationBuilder extends ValuesSourceAggregationBuil
         this.bucketCountThresholds = new DateHierarchyAggregator.BucketCountThresholds(clone.bucketCountThresholds);
     }
 
-    @Override
-    protected ValuesSourceType defaultValueSourceType() {
+    protected ValuesSourceType defaultType() {
         return CoreValuesSourceType.DATE;
+    }
+
+
+    @Override
+    protected ValuesSourceRegistry.RegistryKey<?> getRegistryKey() {
+        return REGISTRY_KEY;
     }
 
     @Override
     protected AggregationBuilder shallowCopy(Builder factoriesBuilder, Map<String, Object> metadata) {
         return new DateHierarchyAggregationBuilder(this, factoriesBuilder, metadata);
+    }
+
+
+    @Override
+    protected ValuesSourceType defaultValueSourceType() {
+        return CoreValuesSourceType.KEYWORD;
     }
 
     /**
@@ -331,16 +345,19 @@ public class DateHierarchyAggregationBuilder extends ValuesSourceAggregationBuil
 
     @Override
     protected ValuesSourceAggregatorFactory innerBuild(
-            QueryShardContext context,
+            AggregationContext context,
             ValuesSourceConfig config,
             AggregatorFactory parent,
             Builder subFactoriesBuilder) throws IOException {
+
+        DateHierarchyAggregatorSupplier aggregatorSupplier =
+            context.getValuesSourceRegistry().getAggregator(REGISTRY_KEY, config);
 
         final List<RoundingInfo> roundingsInfo = buildRoundings();
 
         return new DateHierarchyAggregatorFactory(
                 name, config, order, roundingsInfo, minDocCount, bucketCountThresholds,
-                context, parent, subFactoriesBuilder, metadata);
+                context, parent, subFactoriesBuilder, metadata, aggregatorSupplier);
     }
 
     @Override

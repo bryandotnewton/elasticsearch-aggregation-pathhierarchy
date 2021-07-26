@@ -7,19 +7,21 @@ import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.xcontent.ObjectParser;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentParser;
-import org.elasticsearch.index.query.QueryShardContext;
 import org.elasticsearch.search.aggregations.AggregationBuilder;
+import org.opendatasoft.elasticsearch.search.aggregations.bucket.PathHierarchyAggregatorSupplier;
 import org.elasticsearch.search.aggregations.AggregatorFactories;
 import org.elasticsearch.search.aggregations.AggregatorFactories.Builder;
 import org.elasticsearch.search.aggregations.AggregatorFactory;
 import org.elasticsearch.search.aggregations.BucketOrder;
 import org.elasticsearch.search.aggregations.InternalOrder;
+import org.elasticsearch.search.aggregations.support.AggregationContext;
 import org.elasticsearch.search.aggregations.support.CoreValuesSourceType;
 import org.elasticsearch.search.aggregations.support.ValuesSourceAggregationBuilder;
 import org.elasticsearch.search.aggregations.support.ValuesSourceAggregatorFactory;
 import org.elasticsearch.search.aggregations.support.ValuesSourceConfig;
 import org.elasticsearch.search.aggregations.support.ValuesSourceRegistry;
 import org.elasticsearch.search.aggregations.support.ValuesSourceType;
+import org.elasticsearch.search.internal.SearchContext;
 
 import java.io.IOException;
 import java.util.List;
@@ -32,6 +34,9 @@ import java.util.Objects;
  */
 public class PathHierarchyAggregationBuilder extends ValuesSourceAggregationBuilder<PathHierarchyAggregationBuilder> {
     public static final String NAME = "path_hierarchy";
+    public static final ValuesSourceRegistry.RegistryKey<PathHierarchyAggregatorSupplier> REGISTRY_KEY =
+        new ValuesSourceRegistry.RegistryKey<>(NAME, PathHierarchyAggregatorSupplier.class);
+
 
     public static final ParseField SEPARATOR_FIELD = new ParseField("separator");
     public static final ParseField MIN_DEPTH_FIELD = new ParseField("min_depth");
@@ -123,8 +128,13 @@ public class PathHierarchyAggregationBuilder extends ValuesSourceAggregationBuil
     }
 
     @Override
+    protected ValuesSourceRegistry.RegistryKey<?> getRegistryKey() {
+        return REGISTRY_KEY;
+    }
+
+    @Override
     protected ValuesSourceType defaultValueSourceType() {
-        return CoreValuesSourceType.BYTES;
+        return CoreValuesSourceType.KEYWORD;
     }
 
     @Override
@@ -255,7 +265,7 @@ public class PathHierarchyAggregationBuilder extends ValuesSourceAggregationBuil
 
     @Override
     protected ValuesSourceAggregatorFactory innerBuild(
-            QueryShardContext context,
+            AggregationContext context,
             ValuesSourceConfig config,
             AggregatorFactory parent,
             AggregatorFactories.Builder subFactoriesBuilder) throws IOException {
@@ -272,9 +282,13 @@ public class PathHierarchyAggregationBuilder extends ValuesSourceAggregationBuil
             maxDepth = depth;
         }
 
+
+        PathHierarchyAggregatorSupplier aggregatorSupplier =
+            context.getValuesSourceRegistry().getAggregator(REGISTRY_KEY, config);
+
         return new PathHierarchyAggregatorFactory(
                 name, config, separator, minDepth, maxDepth, keepBlankPath, order, minDocCount, bucketCountThresholds,
-                context, parent, subFactoriesBuilder, metadata);
+                context, parent, subFactoriesBuilder, metadata, aggregatorSupplier);
     }
 
     @Override

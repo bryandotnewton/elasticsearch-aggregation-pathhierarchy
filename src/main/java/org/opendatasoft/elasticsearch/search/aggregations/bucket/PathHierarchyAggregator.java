@@ -12,6 +12,7 @@ import org.elasticsearch.common.util.BytesRefHash;
 import org.elasticsearch.common.xcontent.ToXContentFragment;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.index.fielddata.SortedBinaryDocValues;
+import org.elasticsearch.search.aggregations.support.AggregationContext;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.AggregatorFactories;
 import org.elasticsearch.search.aggregations.BucketOrder;
@@ -128,13 +129,15 @@ public class PathHierarchyAggregator extends DeferableBucketAggregator {
     public PathHierarchyAggregator(
             String name,
             AggregatorFactories factories,
-            SearchContext context,
+            AggregationContext context,
             ValuesSource valuesSource,
             BucketOrder order,
             long minDocCount,
             BucketCountThresholds bucketCountThresholds,
             BytesRef separator,
             int minDepth,
+            int maxDepth,
+            boolean keepBlankPath,
             Aggregator parent,
             Map<String, Object> metadata
     ) throws IOException {

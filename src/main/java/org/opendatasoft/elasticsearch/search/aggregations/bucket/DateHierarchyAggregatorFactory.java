@@ -1,6 +1,5 @@
 package org.opendatasoft.elasticsearch.search.aggregations.bucket;
 
-import org.elasticsearch.index.query.QueryShardContext;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.AggregatorFactories;
 import org.elasticsearch.search.aggregations.AggregatorFactory;
@@ -10,13 +9,15 @@ import org.elasticsearch.search.aggregations.InternalAggregation;
 import org.elasticsearch.search.aggregations.InternalOrder;
 import org.elasticsearch.search.aggregations.NonCollectingAggregator;
 import org.elasticsearch.search.aggregations.bucket.BucketUtils;
-import org.elasticsearch.search.aggregations.support.AggregatorSupplier;
+import org.opendatasoft.elasticsearch.search.aggregations.bucket.DateHierarchyAggregatorSupplier;
 import org.elasticsearch.search.aggregations.support.CoreValuesSourceType;
 import org.elasticsearch.search.aggregations.support.ValuesSource;
 import org.elasticsearch.search.aggregations.support.ValuesSourceAggregatorFactory;
 import org.elasticsearch.search.aggregations.support.ValuesSourceConfig;
 import org.elasticsearch.search.aggregations.support.ValuesSourceRegistry;
 import org.elasticsearch.search.internal.SearchContext;
+
+import org.elasticsearch.search.aggregations.support.AggregationContext;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -34,6 +35,7 @@ class DateHierarchyAggregatorFactory extends ValuesSourceAggregatorFactory {
     private BucketOrder order;
     private List<DateHierarchyAggregationBuilder.RoundingInfo> roundingsInfo;
     private final DateHierarchyAggregator.BucketCountThresholds bucketCountThresholds;
+    private final DateHierarchyAggregatorSupplier aggregatorSupplier;
 
     DateHierarchyAggregatorFactory(String name,
                                    ValuesSourceConfig config,
@@ -41,35 +43,34 @@ class DateHierarchyAggregatorFactory extends ValuesSourceAggregatorFactory {
                                    List<DateHierarchyAggregationBuilder.RoundingInfo> roundingsInfo,
                                    long minDocCount,
                                    DateHierarchyAggregator.BucketCountThresholds bucketCountThresholds,
-                                   QueryShardContext context,
+                                   AggregationContext context,
                                    AggregatorFactory parent,
                                    AggregatorFactories.Builder subFactoriesBuilder,
-                                   Map<String, Object> metaData
+                                   Map<String, Object> metaData,
+                                   DateHierarchyAggregatorSupplier aggregationSupplier
     ) throws IOException {
         super(name, config, context, parent, subFactoriesBuilder, metaData);
         this.order = order;
         this.roundingsInfo = roundingsInfo;
         this.minDocCount = minDocCount;
         this.bucketCountThresholds = bucketCountThresholds;
+        this.aggregatorSupplier = aggregationSupplier;
     }
 
     static void registerAggregators(ValuesSourceRegistry.Builder builder) {
-        builder.register(DateHierarchyAggregationBuilder.NAME,
+        builder.register(DateHierarchyAggregationBuilder.REGISTRY_KEY,
                 Collections.singletonList(CoreValuesSourceType.DATE),
-                new AggregatorSupplier() {
-                    // Not using the supplier, it is not clear yet how it is used :/
-                }
+                DateHierarchyAggregator::new, true
         );
     }
 
     @Override
     protected Aggregator createUnmapped(
-            SearchContext searchContext,
             Aggregator parent,
             Map<String, Object> metadata) throws IOException {
         final InternalAggregation aggregation = new InternalDateHierarchy(name, new ArrayList<>(), order, minDocCount,
                 bucketCountThresholds.getRequiredSize(), bucketCountThresholds.getShardSize(), 0, metadata);
-        return new NonCollectingAggregator(name, searchContext, parent, factories, metadata) {
+        return new NonCollectingAggregator(name, context, parent, factories, metadata) {
             {
                 // even in the case of an unmapped aggregator, validate the
                 // order
@@ -83,7 +84,7 @@ class DateHierarchyAggregatorFactory extends ValuesSourceAggregatorFactory {
 
     @Override
     protected Aggregator doCreateInternal(
-            SearchContext searchContext, Aggregator parent, CardinalityUpperBound cardinality, Map<String, Object> metadata
+           Aggregator parent, CardinalityUpperBound cardinality, Map<String, Object> metadata
     ) throws IOException {
 
         DateHierarchyAggregator.BucketCountThresholds bucketCountThresholds = new
@@ -96,9 +97,22 @@ class DateHierarchyAggregatorFactory extends ValuesSourceAggregatorFactory {
             bucketCountThresholds.setShardSize(BucketUtils.suggestShardSideQueueSize(bucketCountThresholds.getRequiredSize()));
         }
         bucketCountThresholds.ensureValidity();
-        return new DateHierarchyAggregator(
-                name, factories, searchContext, (ValuesSource.Numeric) config.getValuesSource(),
+        /*return new DateHierarchyAggregator(
+                name, factories, context, (ValuesSource.Numeric) config.getValuesSource(),
                 order, minDocCount, bucketCountThresholds, roundingsInfo, parent, metadata);
+                */
+                return aggregatorSupplier.build(
+                  name,
+                  factories,
+                  context,
+                  (ValuesSource.Numeric) config.getValuesSource(),
+                  order,
+                  minDocCount,
+                  bucketCountThresholds,
+                  roundingsInfo,
+                  parent,
+                  metadata
+                );
     }
 
 }

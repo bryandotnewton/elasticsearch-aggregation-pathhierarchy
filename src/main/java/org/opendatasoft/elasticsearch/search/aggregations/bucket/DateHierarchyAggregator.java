@@ -19,7 +19,8 @@ import org.elasticsearch.search.aggregations.LeafBucketCollector;
 import org.elasticsearch.search.aggregations.LeafBucketCollectorBase;
 import org.elasticsearch.search.aggregations.bucket.DeferableBucketAggregator;
 import org.elasticsearch.search.aggregations.support.ValuesSource;
-import org.elasticsearch.search.internal.SearchContext;
+
+import org.elasticsearch.search.aggregations.support.AggregationContext;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -126,7 +127,7 @@ public class DateHierarchyAggregator extends DeferableBucketAggregator {
     public DateHierarchyAggregator(
             String name,
             AggregatorFactories factories,
-            SearchContext context,
+            AggregationContext context,
             ValuesSource.Numeric valuesSource,
             BucketOrder order,
             long minDocCount,

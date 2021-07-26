@@ -2,11 +2,14 @@ buildscript {
     repositories {
         mavenLocal()
         mavenCentral()
-        jcenter()
+        maven {
+          url "https://plugins.gradle.org/m2/"
+        }
     }
 
     dependencies {
         classpath "org.elasticsearch.gradle:build-tools:${es_version}"
+        classpath: "gradle.plugin.com.github.jengelman.gradle.plugins:shadow:7.0.0"
     }
 }
 
@@ -17,6 +20,7 @@ apply plugin: 'java'
 apply plugin: 'idea'
 apply plugin: 'elasticsearch.esplugin'
 apply plugin: 'elasticsearch.yaml-rest-test'
+apply plugin: 'com.github.johnrengelman.shadow'
 
 // license of this project
 licenseFile = rootProject.file('LICENSE')
@@ -56,21 +60,21 @@ dependencies {
     yamlRestTestImplementation "org.apache.logging.log4j:log4j-core:${versions.log4j}"
 }
 
-restResources {
-    restApi {
-        includeCore '*'
-    }
-}
+// restResources {
+//     restApi {
+//         includeCore '*'
+//     }
+// }
 
 // Skip license headers check
-licenseHeaders.enabled = false
+//licenseHeaders.enabled = false
 
 // Use elasticsearch checkstyle rules
-checkstyleTest.enabled = true
+//checkstyleTest.enabled = true
 
-dependencyLicenses.enabled = true
+//dependencyLicenses.enabled = true
 
-thirdPartyAudit.enabled = true
+//thirdPartyAudit.enabled = true
 
 //FIXME: This task should be removed in elastic, disabling until is done.
-integTest.enabled = false
+//integTest.enabled = false
